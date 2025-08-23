@@ -1,6 +1,7 @@
 from mcp.server.fastmcp import FastMCP
 from mcp.types import TextContent, ImageContent, BlobResourceContents
 import logging
+import qft_functions as qft
 
 # Set up logging (this just prints messages to your terminal for debugging)
 logging.basicConfig(
@@ -39,6 +40,93 @@ def get_image_of_flower():
 
     return ImageContent(data=image_base64, mimeType="image/png", type="image")
 
+@mcp.tool()
+def create_feynman_amplitude(process: str, order: int) -> TextContent:
+    """Create Feynman amplitude for a given process and order.
+    Here is the symbol for the particles:
+    F[1,{1}]: electron
+    F[1,{2}]: muon
+    F[1,{3}]: tau
+    V[1]    : photon
+    For anti-fermion, just add a minus sign before it, e.g. -F[1,{1}] is positron.
+
+    Args:
+        process: The particle process in the format "{A} -> {B}", e.g. "{F[1, {1}], -F[1, {1}]} -> {F[1, {2}], -F[1, {2}]}"
+        order: The perturbative order, e.g. 0 for tree level, 1 for one-loop
+
+    Returns:
+        The path to the generated amplitude file on the server.
+    """
+
+    amp_path = qft.feynarts_create_amp(process, order)
+
+    return TextContent(
+        type="text",
+        text=f"Amplitude file on the server created at: {amp_path}"
+    )
+
+@mcp.tool()
+def amplitude_squared(amp_file1: str, amp_file2 = 1) -> TextContent:
+    """Simplify the product of the first amplitude and the conjugate of the second amplitude.
+    If the second amplitude is 1, it will just simplify the first amplitude.
+    The file path is given by the function `feynarts_create_amp`.
+
+    Args:
+        amp_file1: The path to the first amplitude file on the server.
+        amp_file2: The path to the second amplitude file on the server (1 by default).
+
+    Returns:
+        The path to the generated squared amplitude file on the server.
+    """
+
+    ampSq_path = qft.calcloop_amplitude_squared(amp_file1, amp_file2)
+
+    return TextContent(
+        type="text",
+        text=f"Amplitude squared file on the server created at: {ampSq_path}"
+    )
+
+@mcp.tool()
+def family_decomposition(ampSq_file: str) -> TextContent:
+    """Perform family decomposition on the given amplitude squared file.
+    The file path is given by the function `amplitude_squared`.
+
+    Args:
+        ampSq_file: The path to the amplitude squared file on the server.
+
+    Returns:
+        The path to the generated family decomposition file on the server.
+    """
+
+    family_path = qft.calcloop_family_decomposition(ampSq_file)
+
+    return TextContent(
+        type="text",
+        text=f"Family decomposition file on the server created at: {family_path}"
+    )
+
+@mcp.tool()
+def calculate_FI(family_file: str, numeric: str):
+    """Calculate the FI for the given family decomposition file.
+    The file path is given by the function `family_decomposition`.
+
+    Args:
+        family_file: The path to the family decomposition file on the server.
+        numeric: The numeric value to use for the calculation, e.g. "{ME->1, MM->1, ML->1, s->100, t->-1}".
+                 ME, MM, ML are the masses of electron, muon and tau respectively. s and t are the Mandelstam variables.
+
+    Returns:
+        The numerical result.
+    """
+
+    res_path = qft.calcloop_amflow_calculate_FI(family_file, numeric)
+    with open(res_path, 'r') as f:
+        res = f.read()
+
+    return TextContent(
+        type="text",
+        text=f"The numerical result is: {res}"
+    )
 
 # This is the main entry point for your server
 def main():
