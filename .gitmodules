@@ -1,0 +1,3 @@
+[submodule "calcloop-main"]
+	path = calcloop-main
+	url = https://gitlab.com/multiloop-pku/calcloop.git
